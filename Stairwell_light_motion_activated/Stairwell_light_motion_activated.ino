@@ -15,7 +15,8 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRBW + NEO_KHZ80
 
 int pirState = LOW;
 int pirState2 = LOW;
-int lastTriggeredSensor = 0;  // 1 for PIR_SENSOR_PIN, 2 for PIR_SENSOR_PIN2
+int lastTriggeredSensor = 0;  // 0 for None, 1 for PIR_SENSOR_PIN, 2 for PIR_SENSOR_PIN2
+bool isStripOn = false;  // true if the LED strip is on, false if off
 unsigned long lastMotionTime = 0;
 unsigned long lastMotionTime2 = 0;
 
@@ -38,49 +39,45 @@ void setup() {
   ArduinoOTA.begin();
 }
 
-
 void loop() {
   int pirValue = digitalRead(PIR_SENSOR_PIN);
   int pirValue2 = digitalRead(PIR_SENSOR_PIN2);
   unsigned long currentTime = millis();
 
-  if (pirValue == HIGH) {
+  // Turn on the strip and update last triggered sensor if motion is detected
+  if (pirValue == HIGH && !isStripOn) {
     pirState = HIGH;
     lightUpStrip();
     lastMotionTime = currentTime;
     lastTriggeredSensor = 1;
+    isStripOn = true;
   }
-
-  if (pirValue2 == HIGH) {
+  if (pirValue2 == HIGH && !isStripOn) {
     pirState2 = HIGH;
     lightUpStripReverse();
     lastMotionTime2 = currentTime;
     lastTriggeredSensor = 2;
+    isStripOn = true;
   }
 
+  // Turn off the strip if no motion is detected for a specified time
   if (pirValue == LOW && pirValue2 == LOW) {
-    if (pirState == HIGH && currentTime - lastMotionTime > 10000) {
-      if (lastTriggeredSensor == 1) {
-        turnOffStrip();  // Turns off the LED strip in the normal direction
-      } else {
-        turnOffStripReverse();  // Turns off the LED strip in the reverse direction
-      }
+    if (pirState == HIGH && currentTime - lastMotionTime > 10000 && lastTriggeredSensor == 1) {
+      turnOffStrip();
       pirState = LOW;
+      isStripOn = false;
     }
-
-    if (pirState2 == HIGH && currentTime - lastMotionTime2 > 10000) {
-      if (lastTriggeredSensor == 2) {
-        turnOffStripReverse();  // Turns off the LED strip in the reverse direction
-      } else {
-        turnOffStrip();  // Turns off the LED strip in the normal direction
-      }
+    if (pirState2 == HIGH && currentTime - lastMotionTime2 > 10000 && lastTriggeredSensor == 2) {
+      turnOffStripReverse();
       pirState2 = LOW;
+      isStripOn = false;
     }
   }
 
   // Handle OTA
   ArduinoOTA.handle();
 }
+
 
 void lightUpStrip() {
   for (int i = 0; i < NUMPIXELS; i++) {
@@ -102,8 +99,8 @@ void lightUpStripReverse() {
 
 void turnOffStrip() {
   for (int i = 0; i < NUMPIXELS; i++) {
-    strip.setBrightness(20);
-    strip.setPixelColor(i, strip.Color(255, 0, 60, 0));
+    strip.setBrightness(0);
+    strip.setPixelColor(i, strip.Color(0, 0, 0, 0));
     strip.show();
     delay(8);
   }
@@ -111,8 +108,8 @@ void turnOffStrip() {
 
 void turnOffStripReverse() {
   for (int i = 0; i < NUMPIXELS; i++) {  // Starts from 0 to NUMPIXELS - 1
-    strip.setBrightness(20);
-    strip.setPixelColor(i, strip.Color(255, 0, 60, 0)); // Turn off the pixel or dim low
+    strip.setBrightness(0);
+    strip.setPixelColor(i, strip.Color(0, 0, 0, 0)); // Turn off the pixel or dim low
     strip.show();
     delay(8);  // Delay for 8 milliseconds to control the speed of progression
   }
