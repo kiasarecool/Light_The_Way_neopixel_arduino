@@ -15,6 +15,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRBW + NEO_KHZ80
 
 int pirState = LOW;
 int pirState2 = LOW;
+int lastTriggeredSensor = 0;  // 1 for PIR_SENSOR_PIN, 2 for PIR_SENSOR_PIN2
 unsigned long lastMotionTime = 0;
 unsigned long lastMotionTime2 = 0;
 
@@ -37,32 +38,42 @@ void setup() {
   ArduinoOTA.begin();
 }
 
+
 void loop() {
   int pirValue = digitalRead(PIR_SENSOR_PIN);
   int pirValue2 = digitalRead(PIR_SENSOR_PIN2);
+  unsigned long currentTime = millis();
 
   if (pirValue == HIGH) {
-    if (pirState == LOW) {
-      pirState = HIGH;
-      lightUpStrip();
-    }
-    lastMotionTime = millis();
-  } else {
-    if (pirState == HIGH && millis() - lastMotionTime > 10000) {
-      turnOffStrip();
-      pirState = LOW;
-    }
+    pirState = HIGH;
+    lightUpStrip();
+    lastMotionTime = currentTime;
+    lastTriggeredSensor = 1;
   }
 
   if (pirValue2 == HIGH) {
-    if (pirState2 == LOW) {
-      pirState2 = HIGH;
-      lightUpStripReverse();
+    pirState2 = HIGH;
+    lightUpStripReverse();
+    lastMotionTime2 = currentTime;
+    lastTriggeredSensor = 2;
+  }
+
+  if (pirValue == LOW && pirValue2 == LOW) {
+    if (pirState == HIGH && currentTime - lastMotionTime > 10000) {
+      if (lastTriggeredSensor == 1) {
+        turnOffStrip();  // Turns off the LED strip in the normal direction
+      } else {
+        turnOffStripReverse();  // Turns off the LED strip in the reverse direction
+      }
+      pirState = LOW;
     }
-    lastMotionTime2 = millis();
-  } else {
-    if (pirState2 == HIGH && millis() - lastMotionTime2 > 10000) {
-      turnOffStripReverse();
+
+    if (pirState2 == HIGH && currentTime - lastMotionTime2 > 10000) {
+      if (lastTriggeredSensor == 2) {
+        turnOffStripReverse();  // Turns off the LED strip in the reverse direction
+      } else {
+        turnOffStrip();  // Turns off the LED strip in the normal direction
+      }
       pirState2 = LOW;
     }
   }
@@ -70,6 +81,7 @@ void loop() {
   // Handle OTA
   ArduinoOTA.handle();
 }
+
 void lightUpStrip() {
   for (int i = 0; i < NUMPIXELS; i++) {
     strip.setBrightness(220);
