@@ -3,22 +3,26 @@
 #include <Adafruit_NeoPixel.h>
 
 // WiFi settings
-const char* ssid = "YOUR WIFI NETWORK NAME";
-const char* password = "YOUR WIFI PASSWORD";
+const char* ssid = "YOUR SSID";
+const char* password = "YOUR PASSWORD";
 
 #define PIN            15
 #define NUMPIXELS      162
 #define PIR_SENSOR_PIN 13
+#define PIR_SENSOR_PIN2 14  // Second PIR sensor
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRBW + NEO_KHZ800);
 
 int pirState = LOW;
+int pirState2 = LOW;
 unsigned long lastMotionTime = 0;
+unsigned long lastMotionTime2 = 0;
 
 void setup() {
   pinMode(PIR_SENSOR_PIN, INPUT);
+  pinMode(PIR_SENSOR_PIN2, INPUT);  // Initialize the second PIR sensor
+  strip.setBrightness(220);
   strip.begin();
-  strip.setBrightness(230);
   strip.show();
 
   // Initialize the WiFi module
@@ -35,6 +39,7 @@ void setup() {
 
 void loop() {
   int pirValue = digitalRead(PIR_SENSOR_PIN);
+  int pirValue2 = digitalRead(PIR_SENSOR_PIN2);
 
   if (pirValue == HIGH) {
     if (pirState == LOW) {
@@ -43,39 +48,60 @@ void loop() {
     }
     lastMotionTime = millis();
   } else {
-    if (pirState == HIGH && millis() - lastMotionTime > 30000) {
+    if (pirState == HIGH && millis() - lastMotionTime > 10000) {
       turnOffStrip();
       pirState = LOW;
+    }
+  }
+
+  if (pirValue2 == HIGH) {
+    if (pirState2 == LOW) {
+      pirState2 = HIGH;
+      lightUpStripReverse();
+    }
+    lastMotionTime2 = millis();
+  } else {
+    if (pirState2 == HIGH && millis() - lastMotionTime2 > 10000) {
+      turnOffStripReverse();
+      pirState2 = LOW;
     }
   }
 
   // Handle OTA
   ArduinoOTA.handle();
 }
-
 void lightUpStrip() {
   for (int i = 0; i < NUMPIXELS; i++) {
-    strip.setPixelColor(i, strip.Color(204, 85, 0, 100));
+    strip.setBrightness(220);
+    strip.setPixelColor(i, strip.Color(204, 90, 0, 100));
     strip.show();
-    delay(20);
+    delay(8);
+  }
+}
+
+void lightUpStripReverse() {
+  for (int i = NUMPIXELS - 1; i >= 0; i--) {
+    strip.setBrightness(220);
+    strip.setPixelColor(i, strip.Color(204, 90, 0, 100));
+    strip.show();
+    delay(8);
   }
 }
 
 void turnOffStrip() {
-  for (int j = 0; j <= 128; j += 5) {
-    strip.setBrightness(j);
-    for (int i = 0; i < NUMPIXELS; i++) {
-      strip.setPixelColor(i, strip.Color(255, 0, 0, 0));
-    }
+  for (int i = 0; i < NUMPIXELS; i++) {
+    strip.setBrightness(20);
+    strip.setPixelColor(i, strip.Color(255, 0, 60, 0));
     strip.show();
-    delay(50);
+    delay(8);
   }
-  for (int j = 128; j >= 0; j -= 5) {
-    strip.setBrightness(j);
-    for (int i = 0; i < NUMPIXELS; i++) {
-      strip.setPixelColor(i, strip.Color(255, 0, 0, 0));
-    }
+}
+
+void turnOffStripReverse() {
+  for (int i = 0; i < NUMPIXELS; i++) {  // Starts from 0 to NUMPIXELS - 1
+    strip.setBrightness(20);
+    strip.setPixelColor(i, strip.Color(255, 0, 60, 0)); // Turn off the pixel or dim low
     strip.show();
-    delay(50);
+    delay(8);  // Delay for 8 milliseconds to control the speed of progression
   }
 }
